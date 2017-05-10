@@ -6,7 +6,7 @@ EXIT_SUCCESS=0
 SERVICE="/etc/init.d/$2"
 COMMAND="$1"
 
-if [ "x" = "x$2" ] ; then
+if [ "x" == "x$2" ] ; then
   printf '>>> Syntax: proctl <command> <initscript>\n'
   exit $EXIT_FAILURE
 fi
@@ -17,6 +17,4 @@ else
   printf '>>> `%s´ not found\n' "${SERVICE}"
   exit $EXIT_FAILURE
 fi
-
-exit $EXIT_SUCCESS
 
