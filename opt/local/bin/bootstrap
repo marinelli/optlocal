@@ -144,6 +144,10 @@ pkg_install \
   6in4 ip ss bind-host bind-dig \
   diffutils patch zile terminfo
 
+pkg_remove \
+  kmod-ppp kmod-pppox kmod-pppoe \
+  ppp-mod-pppoe ppp
+
 dns_temp_disable
 
 proctl reload network

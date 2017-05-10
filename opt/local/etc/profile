@@ -1,5 +1,7 @@
 #!/bin/sh
 
+_CUR_SCRIPT='/etc/profile'
+
 export PATH='/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin'
 
 unset _PREV_IFS
@@ -10,12 +12,12 @@ fi
 IFS=':'
 for _CUR_PATH in $PATH ; do
     if [ ! -e "$_CUR_PATH" ] ; then
-        printf '!!! %s : %s\n' '/etc/profile' "$_CUR_PATH does not exist" 1>&2
+        printf '!!! %s : %s\n' "$_CUR_SCRIPT" "$_CUR_PATH does not exist" 1>&2
         continue
     fi
 
     if [ ! -d "$_CUR_PATH" ] ; then
-        printf '!!! %s : %s\n' '/etc/profile' "$_CUR_PATH is not a directory" 1>&2
+        printf '!!! %s : %s\n' "$_CUR_SCRIPT" "$_CUR_PATH is not a directory" 1>&2
         continue
     fi
 done
@@ -51,4 +53,6 @@ if [ -d "$_PROFILE_D" ]; then
     unset _CUR_FILE
 fi
 unset _PROFILE_D
+
+unset _CUR_SCRIPT
 

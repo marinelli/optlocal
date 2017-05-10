@@ -1,0 +1,11 @@
+#!/bin/sh
+
+_BASE_DIR="$1"
+
+find "$_BASE_DIR" -type l | \
+  while read _CUR_LINK ; do
+    if ( ! readlink -f "$_CUR_LINK" 1>/dev/null 2>&1 ) ; then
+      printf '%s\n' "$_CUR_LINK"
+    fi
+  done
+
