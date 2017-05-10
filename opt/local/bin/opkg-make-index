@@ -1,0 +1,45 @@
+#!/bin/sh
+
+set -e
+
+###
+_CMD_NAME="${0##*/}"
+. /opt/local/lib/exe.sh
+###
+
+
+export_required_commands 'awk find ls md5sum openssl tar'
+
+
+_PKGS_PATH="$1"
+
+if [ -z "$_PKGS_PATH" ] || [ ! -d "$_PKGS_PATH" ] ; then
+    printf '!!! %s : %s\n' "$_CMD_NAME" 'you need to pass a directory as argument' 1>&2
+    exit 1
+fi
+
+
+for _CUR_PKG_PATH in $( "$__ext_find" "$_PKGS_PATH" -type f -name '*.ipk' | sort ) ; do
+    _CUR_PKG_FILENAME="${_CUR_PKG_PATH##*/}"
+    _CUR_PKG_NAME="${_CUR_PKG_FILENAME%%_*}"
+
+    if [ "$_CUR_PKG_NAME" = 'kernel' ] || [ "$_CUR_PKG_NAME" = 'libc' ] ; then
+        continue
+    fi
+
+    _CUR_PKG_SIZE=$( "$__ext_ls" -l "$_CUR_PKG_PATH" | "$__ext_awk" '{ print $5 }' )
+    _CUR_PKG_MD5=$( "$__ext_md5sum" "$_CUR_PKG_PATH" | "$__ext_awk" '{ print $1 }' )
+    _CUR_PKG_SHA256=$( "$__ext_openssl" dgst -sha256 "$_CUR_PKG_PATH" | "$__ext_awk" '{ print $2 }' )
+
+    tar zxOf "$_CUR_PKG_PATH" ./control.tar.gz | \
+      tar zxOf - ./control | \
+        sed -e "s/^Description:/\
+Filename: ${_CUR_PKG_FILENAME}\\
+Size: ${_CUR_PKG_SIZE}\\
+MD5Sum: ${_CUR_PKG_MD5}\\
+SHA256sum: ${_CUR_PKG_SHA256}\\
+Description:/"
+
+    printf '\n'
+done
+
