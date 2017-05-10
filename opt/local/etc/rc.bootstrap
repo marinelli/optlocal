@@ -1,0 +1,36 @@
+#!/bin/sh
+
+_CUR_SCRIPT='rc.bootstrap'
+
+
+_FIRSTBOOT_FILE='/tmp/firstboot'
+
+if [ -f "$_FIRSTBOOT_FILE" ] ; then
+    _BUSYBOX=$( which busybox )
+
+    if [ "$?" -eq 0 ] ; then
+        _LOGIN_CMD=$( which /opt/local/bin/login || printf /bin/sh )
+
+        "$_BUSYBOX" telnetd -p 10023 -l "$_LOGIN_CMD"
+    else
+        printf "!!! %s : %s\n" "$_CUR_SCRIPT" "busybox does not exist" 1>&2
+    fi
+
+    unset _BUSYBOX
+
+    _BOOTSTRAP=$( which /opt/local/bin/bootstrap )
+
+    if [ "$?" -eq 0 ] ; then
+        "$_BOOTSTRAP" 2>&1 | tee /tmp/bootstrap.log
+    fi
+
+    unset _BOOTSTRAP
+
+    rm -f "$_FIRSTBOOT_FILE"
+fi
+
+unset _FIRSTBOOT_FILE
+
+
+unset _CUR_SCRIPT
+

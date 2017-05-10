@@ -1,0 +1,21 @@
+#!/bin/sh
+
+. /opt/local/lib/exe.sh
+
+###
+
+export_optional_commands 'mksh ash'
+
+if [ ! -z "$__ext_mksh" ] ; then
+    export SHELL="$__ext_mksh"
+    exec "$__ext_mksh" "$@"
+fi
+
+if [ ! -z "$__ext_ash" ] ; then
+    export SHELL="$__ext_ash"
+    exec "$__ext_ash" "$@"
+fi
+
+export SHELL=/bin/sh
+exec /bin/sh "$@"
+

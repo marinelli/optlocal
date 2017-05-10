@@ -1,0 +1,36 @@
+#!/bin/sh
+
+. /opt/local/lib/exe.sh
+
+
+export_required_commands 'ln grep'
+
+
+OPKG_CONF_DEST='/opt/local/etc/opkg.conf'
+
+
+OPKG_CONF_NAME="$1"
+
+if [ -z "$OPKG_CONF_NAME" ] ; then
+    OPKG_CONF_NAME='openwrt-http'
+fi
+
+
+printf "$OPKG_CONF_NAME" | "$__ext_grep" -q -- '-http[s]*$'
+
+if [ "$?" != "0" ] ; then
+    OPKG_CONF_NAME="${OPKG_CONF_NAME}-http"
+fi
+
+
+OPKG_CONF_PATH="/opt/local/etc/opkg/opkg-${OPKG_CONF_NAME}.conf"
+
+if [ ! -f "${OPKG_CONF_PATH}" ] ; then
+    printf '!!! %s\n' "$OPKG_CONF_PATH does not exist"
+    exit 1
+fi
+
+
+"$__ext_ln" -snf "${OPKG_CONF_PATH#/opt/local/etc/}" "$OPKG_CONF_DEST" && \
+  printf '>>> %s\n' "${OPKG_CONF_PATH#/opt/local/etc/opkg/} activated"
+

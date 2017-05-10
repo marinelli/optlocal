@@ -1,5 +1,30 @@
 #!/bin/sh
 
+get_url () {
+  case "$1" in
+    garr-http|garr)
+      URL_PROTOCOL='http'
+      URL_HOST='mirror1.mirror.garr.it'
+      URL_PATH='mirrors/openwrt/snapshots/trunk'
+    ;;
+    openwrt-http|openwrt)
+      URL_PROTOCOL='http'
+      URL_HOST='downloads.openwrt.org'
+      URL_PATH='snapshots/trunk'
+    ;;
+    openwrt-https)
+      URL_PROTOCOL='https'
+      URL_HOST='downloads.openwrt.org'
+      URL_PATH='snapshots/trunk'
+    ;;
+    *)
+      printf '!!! %s\n' "config not available" 1>&2
+      return 1
+    ;;
+  esac
+}
+
+
 CONFIG='openwrt-https'
 
 if [ ! -z "$1" ] ; then
@@ -10,27 +35,7 @@ if [ ! -z "$1" ] ; then
   fi
 fi
 
-case "$CONFIG" in
-  garr-http|garr)
-    URL_PROTOCOL='http'
-    URL_HOST='mirror1.mirror.garr.it'
-    URL_PATH='mirrors/openwrt/snapshots/trunk'
-  ;;
-  openwrt-http)
-    URL_PROTOCOL='http'
-    URL_HOST='downloads.openwrt.org'
-    URL_PATH='snapshots/trunk'
-  ;;
-  openwrt-https|openwrt)
-    URL_PROTOCOL='https'
-    URL_HOST='downloads.openwrt.org'
-    URL_PATH='snapshots/trunk'
-  ;;
-  *)
-    printf '!!! %s\n' "config not available" 1>&2
-    exit 1
-  ;;
-esac
+get_url "$CONFIG" || exit 1
 
 
 MD5SUM=$(which md5sum)
@@ -50,14 +55,19 @@ fi
 
 case "${CLIENT##*/}" in
   curl)
-    "$CLIENT" --version 2>/dev/null | grep -qi '^protocols.*[[:blank:]]https[[:blank:]]' || \
-      URL_PROTOCOL='http'
+    "$CLIENT" --version 2>/dev/null | grep -qi '^protocols.*[[:blank:]]https[[:blank:]]' && \
+      HTTPS_CLIENT='true'
   ;;
   wget|wget-ssl)
-    "$CLIENT" --version 2>/dev/null | grep -qi '^.*[[:blank:]]+https[[:blank:]]' || \
-      URL_PROTOCOL='http'
+    "$CLIENT" --version 2>/dev/null | grep -qi '^.*[[:blank:]]+https[[:blank:]]' && \
+      HTTPS_CLIENT='true'
   ;;
 esac
+
+if [ "${URL_PROTOCOL}" = 'https' -a "${HTTPS_CLIENT}" != 'true' ] ; then
+  printf '!!! %s\n' "${CLIENT} does not support https protocol" 1>&2
+  exit 1
+fi
 
 
 _INCLUDE_FILE='/etc/openwrt_image_file'

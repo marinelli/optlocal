@@ -1,0 +1,71 @@
+#!/bin/sh
+
+. /opt/local/lib/exe.sh
+
+
+export_required_commands 'cut wget md5sum'
+
+
+OPENWRT_SITE='http://downloads.openwrt.org/snapshots/trunk/'
+
+
+OPENWRT_ARCH='ar71xx/generic'
+
+if [ ! -z "$1" ] ; then
+    OPENWRT_ARCH="$1"
+fi
+
+
+OPENWRT_MIRROR='garr'
+
+if [ ! -z "$2" ] ; then
+    OPENWRT_MIRROR="$2"
+fi
+
+case "$OPENWRT_MIRROR" in
+    openwrt)
+        MIRROR_SITE='http://downloads.openwrt.org/snapshots/trunk/'
+        ;;
+    garr)
+	MIRROR_SITE='http://mirror1.mirror.garr.it/mirrors/openwrt/snapshots/trunk/'
+	;;
+    reversiva)
+	MIRROR_SITE='http://reversiva.net:10080/openwrt/snapshots/trunk/'
+	;;
+    *)
+	MIRROR_SITE="$OPENWRT_MIRROR"
+        ;;
+esac
+
+
+FILES='md5sums sha256sums'
+
+for CUR_FILE in ${FILES} ; do
+    OPENWRT_FILE_URL="${OPENWRT_SITE%%/}/${OPENWRT_ARCH}/${CUR_FILE}"
+    MIRROR_FILE_URL="${MIRROR_SITE%%/}/${OPENWRT_ARCH}/${CUR_FILE}"
+
+    "$__ext_wget" -q -O- "${OPENWRT_FILE_URL}" > /dev/null
+
+    if [ "$?" -ne "0" ] ; then
+	printf '!!! %s\n' "${OPENWRT_FILE_URL} does not exist" 1>&2
+        exit 1
+    fi
+
+    "$__ext_wget" -q -O- "${MIRROR_FILE_URL}" > /dev/null
+
+    if [ "$?" -ne 0 ] ; then
+	printf '!!! %s\n' "${MIRROR_FILE_URL} does not exist" 1>&2
+	exit 1
+    fi
+
+    OPENWRT_FILE_HASH=$("$__ext_wget" -q -O- "${OPENWRT_FILE_URL}" | "$__ext_md5sum" - | "$__ext_cut" -f 1 -d ' ')
+    MIRROR_FILE_HASH=$("$__ext_wget" -q -O- "${MIRROR_FILE_URL}" | "$__ext_md5sum" - | "$__ext_cut" -f 1 -d ' ')
+
+    if [ "$OPENWRT_FILE_HASH" != "$MIRROR_FILE_HASH" ] ; then
+	printf '!!! %s\n' "${MIRROR_SITE%%/}/${OPENWRT_ARCH}/ is not updated"
+	exit 1
+    fi
+done
+
+printf '>>> %s\n' "${MIRROR_SITE%%/}/${OPENWRT_ARCH}/ is updated"
+

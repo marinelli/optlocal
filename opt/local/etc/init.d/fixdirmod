@@ -1,0 +1,10 @@
+#!/bin/sh /etc/rc.common
+
+START=15
+
+boot() {
+    for CUR_DIR in bin etc lib mnt opt root sbin usr ; do
+        test -d "${CUR_DIR}" && chmod u=rwx,g=rx-w,o=rx-w "/${CUR_DIR}"
+    done
+}
+

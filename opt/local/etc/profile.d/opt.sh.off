@@ -1,0 +1,4 @@
+_OPTLOCAL_ENV='/opt/local/lib/common.sh'
+[ -f "$_OPTLOCAL_ENV" ] && \
+  alias optlocalenv=". $_OPTLOCAL_ENV"
+unset _OPTLOCAL_ENV

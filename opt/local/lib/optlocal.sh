@@ -55,7 +55,7 @@ optlocal_exec () {
   local DEST_FILE=''
   local DEST_PATH=''
 
-  check_not_empty_arguments "$COMMAND_TYPE" "$ORIG_FILE" ||
+  check_not_empty_arguments "$FUN_NAME" "$COMMAND_TYPE" "$ORIG_FILE" ||
     exit $EXIT_FAILURE
 
   local RESULT=`optlocal_paths $ORIG_FILE $DEST_BASE`

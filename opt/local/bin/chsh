@@ -1,0 +1,6 @@
+#!/bin/sh
+
+. /opt/local/lib/shell.sh
+
+change_user_shell $1 $2
+

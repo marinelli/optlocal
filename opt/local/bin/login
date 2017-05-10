@@ -1,4 +1,19 @@
 #!/bin/sh
 
-exec /bin/sh -l
+. /opt/local/lib/exe.sh
+
+###
+
+export_required_commands '/usr/bin/env' || exit 1
+export_optional_commands 'mksh ash'
+
+if [ ! -z "$__ext_mksh" ] ; then
+    exec "$__ext_env" -i SHELL="$__ext_mksh" "$__ext_mksh" -l
+fi
+
+if [ ! -z "$__ext_ash" ] ; then
+    exec "$__ext_env" -i SHELL="$__ext_ash" "$__ext_ash" -l
+fi
+
+exec "$__ext_env" -i SHELL=/bin/sh /bin/sh -l
 

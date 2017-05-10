@@ -1,24 +1,54 @@
 #!/bin/sh
-[ -f /etc/banner ] && cat /etc/banner
 
-export PATH=/usr/bin:/usr/sbin:/bin:/sbin
-export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
+export PATH='/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin'
+
+unset _PREV_IFS
+if [ ! -z "$IFS" ] ; then
+    _PREV_IFS=$IFS
+fi
+
+IFS=':'
+for _CUR_PATH in $PATH ; do
+    if [ ! -e "$_CUR_PATH" ] ; then
+        printf '!!! %s : %s\n' '/etc/profile' "$_CUR_PATH does not exist" 1>&2
+        continue
+    fi
+
+    if [ ! -d "$_CUR_PATH" ] ; then
+        printf '!!! %s : %s\n' '/etc/profile' "$_CUR_PATH is not a directory" 1>&2
+        continue
+    fi
+done
+unset _CUR_PATH
+unset IFS
+
+if [ ! -z "$_PREV_IFS" ] ; then
+    IFS=$_PREV_IFS
+fi
+unset _PREV_IFS
+
+
+export USER=${USER:-root}
 export HOME=${HOME:-/root}
-export PS1='\u@\h:\w\$ '
 
-[ -x /bin/more ] || alias more=less
-[ -x /usr/bin/vim ] && alias vi=vim || alias vim=vi
 
-[ -z "$KSH_VERSION" -o \! -s /etc/mkshrc ] || . /etc/mkshrc
+if [ -f /proc/sys/kernel/hostname ] ; then
+    HOSTNAME=$( cat /proc/sys/kernel/hostname )
+fi
+export HOSTNAME=${HOSTNAME:=localhost}
 
-[ -x /usr/bin/arp ] || arp() { cat /proc/net/arp; }
-[ -x /usr/bin/ldd ] || ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }
 
-export PATH=/usr/local/bin:/usr/local/sbin:$PATH
-export TERM=${TERM%-256color}
+export PS1='\u@\h:\w \$ '
 
-OPTLOCAL_ENV='/opt/local/lib/common.sh'
-[ -f "$OPTLOCAL_ENV" ] && \
-  alias optlocalenv=". $OPTLOCAL_ENV"
-unset OPTLOCAL_ENV
+
+_PROFILE_D='/etc/profile.d'
+if [ -d "$_PROFILE_D" ]; then
+    for _CUR_FILE in "$_PROFILE_D"/*.sh ; do
+        if [ -r "$_CUR_FILE" ] ; then
+            . "$_CUR_FILE"
+        fi
+    done
+    unset _CUR_FILE
+fi
+unset _PROFILE_D
 

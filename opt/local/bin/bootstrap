@@ -4,19 +4,29 @@
 . /opt/local/lib/pkg.sh
 . /opt/local/lib/dns.sh
 . /opt/local/lib/sys.sh
+. /opt/local/lib/shell.sh
+
 
 wait_for_seconds 20
 
 optlocal link << EOF
-bin/proctl bin/reboot
+bin/proctl bin/reboot bin/chsh
 bin/list-upgradable-pkgs
-bin/diff-installed-config
+bin/check-openwrt-mirror
+bin/list-diff-configs
 EOF
 
 optlocal copy dest=/ << EOF
 etc/passwd etc/shadow etc/group
 etc/hosts etc/profile etc/rc.local
-etc/sysupgrade.conf etc/opkg.conf
+etc/sysupgrade.conf etc/sysctl.conf
+EOF
+
+find /opt/local/etc/profile.d/ -type f \! -name \*.off | \
+  optlocal link dest=/
+
+optlocal copy dest=/ << EOF
+etc/init.d/boot
 EOF
 
 find /opt/local/etc/config/ -type f \! -name \*.off | \
@@ -48,10 +58,20 @@ pidof ntpd >/dev/null && proctl stop sysntpd
     >/dev/null 2>&1
 proctl start sysntpd
 
+optlocal link dest=/ << EOF
+etc/opkg.conf
+EOF
+
 while true ; do
   opkg update >/dev/null 2>&1 && break
   sleep 5
 done
+
+
+## mksh
+pkg_install mksh
+pkg_installed mksh && change_user_shell root /bin/mksh
+##
 
 
 ## dropbear
@@ -122,8 +142,7 @@ proctl start miniupnpd
 
 pkg_install \
   6in4 ip ss bind-host bind-dig \
-  diffutils patch zile terminfo \
-  wget ca-certificates
+  diffutils patch zile terminfo
 
 dns_temp_disable
 
