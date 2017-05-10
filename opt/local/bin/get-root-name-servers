@@ -3,7 +3,7 @@
 EXIT_FAILURE=1
 EXIT_SUCCESS=0
 
-ROOTS_URL='http://www.internic.net/domain/named.cache'
+ROOTS_URL='https://www.internic.net/domain/named.cache'
 ROOTS_MD5_URL="${ROOTS_URL}.md5"
 
 OUTPUT_FILE="$1"

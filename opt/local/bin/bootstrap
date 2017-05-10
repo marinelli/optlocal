@@ -113,6 +113,7 @@ pkg_install miniupnpd
 
 disable_and_stop_daemon miniupnpd
 
+optlocal copy etc/miniupnpd.conf dest=/
 optlocal copy etc/init.d/miniupnpd dest=/
 
 proctl enable miniupnpd
@@ -125,6 +126,7 @@ pkg_install \
   diffutils patch zile terminfo
 
 pkg_remove \
+  kmod-lib-crc-ccitt kmod-slhc \
   kmod-ppp kmod-pppox kmod-pppoe \
   ppp-mod-pppoe ppp
 
