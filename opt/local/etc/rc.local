@@ -1,0 +1,13 @@
+# Put your custom commands here that should be executed once
+# the system init finished. By default this file does nothing.
+
+[ -f /tmp/firstboot ] && [ -f /opt/local/bin/bootstrap ] && {
+  /opt/local/bin/bootstrap 2>&1 | tee /tmp/bootstrap.log
+  rm -f /tmp/firstboot
+}
+
+touch /var/run/utmp
+
+echo 0 > /proc/sys/net/netfilter/nf_conntrack_helper
+
+exit 0

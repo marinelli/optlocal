@@ -1,0 +1,45 @@
+#!/bin/sh
+
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
+
+NTPD='/usr/sbin/ntpd'
+[ ! -x "$NTPD" ] && exit $EXIT_FAILURE
+
+DIG='/usr/bin/dig'
+[ ! -x "$DIG" ] && exit $EXIT_FAILURE
+
+sleep_and_continue () {
+  sleep 5
+  continue
+}
+
+dns_servers='@8.8.8.8 @8.8.4.4 @2001:4860:4860::8888 @2001:4860:4860::8844'
+ntp_peers_args=''
+ntp_pool='europe.pool.ntp.org'
+ntp_options='+nodnssec +short +time=1 +tries=2 +retry=0'
+
+while true ; do
+  ntp_servers=`"$DIG" $ntp_options $dns_servers $ntp_pool a $ntp_pool aaaa`
+
+  [ $? -ne 0 ] && sleep_and_continue
+
+  [ -z "$ntp_servers" ] && sleep_and_continue
+
+  pidof ntpd >/dev/null && {
+    printf "ntpd is running\n" | logger -p daemon.info -t firstsync
+    break
+  }
+
+  for address in $ntp_servers ; do
+    ntp_peers_args="${ntp_peers_args:+$ntp_peers_args }-p $address"
+  done
+
+  "$NTPD" -nqN $ntp_peers_args
+
+  [ $? -ne 0 ] && sleep_and_continue
+
+  printf "synced\n" | logger -p daemon.info -t firstsync
+  break
+done
+

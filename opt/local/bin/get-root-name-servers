@@ -1,0 +1,14 @@
+#!/bin/sh
+
+EXIT_FAILURE=1
+EXIT_SUCCESS=0
+
+ROOTS_URL='http://www.internic.net/domain/named.cache'
+OUTPUT_FILE="$1"
+
+if [ -z "$1" ] ; then
+  OUTPUT_FILE='-'
+fi
+
+wget -q "$ROOTS_URL" -O "${OUTPUT_FILE}"
+

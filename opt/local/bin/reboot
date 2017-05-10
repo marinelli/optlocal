@@ -1,0 +1,6 @@
+#!/bin/sh
+
+touch /etc/latest
+
+exec /bin/busybox reboot
+

@@ -1,0 +1,49 @@
+#!/bin/sh
+
+DIFF=`which diff`
+
+if [ -z "$DIFF" ] ; then
+  exit 1
+fi
+
+CONFIG_1="${1##*/}"
+CONFIG_2="${2##*/}"
+
+WORKING_PATH=`mktemp -d /tmp/diff-config.XXXXXX`
+
+FILTER_1=''
+FILTER_2=''
+
+
+case "${CONFIG_1##*-}" in
+  opkg|orig)
+    FILTER_1="-${CONFIG_1##*-}"
+    ;;
+esac
+
+case "${CONFIG_2##*-}" in
+  opkg|orig)
+    FILTER_2="-${CONFIG_2##*-}"
+    ;;
+esac
+
+if [ -n "$FILTER_1" ] ; then
+  uci show "$CONFIG_1" | sed "s/${FILTER_1}//" > \
+    "${WORKING_PATH}/config_1"
+else
+  uci show "$CONFIG_1" > \
+    "${WORKING_PATH}/config_1"
+fi
+
+if [ -n "$FILTER_2" ] ; then
+  uci show "$CONFIG_2" | sed "s/${FILTER_2}//" > \
+    "${WORKING_PATH}/config_2"
+else
+  uci show "$CONFIG_2" > \
+    "${WORKING_PATH}/config_2"
+fi
+
+"$DIFF" -Nu "${WORKING_PATH}/config_1" "${WORKING_PATH}/config_2"
+
+[ -d "$WORKING_PATH" ] && rm -r "$WORKING_PATH"
+

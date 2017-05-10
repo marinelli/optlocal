@@ -1,0 +1,12 @@
+#!/bin/sh
+
+. /opt/local/lib/common.sh
+
+DIFF=`which diff`
+
+[ -z "$DIFF" ] && exit 1
+
+cd "$OPTLOCAL"
+
+find etc/ -type f -exec sh -c "[ -f /{} ] && ! cmp -s /{} {} && $DIFF -Nuq /{} ${OPTLOCAL}/{}" \;
+

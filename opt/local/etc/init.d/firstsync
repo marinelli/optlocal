@@ -1,0 +1,15 @@
+#!/bin/sh /etc/rc.common
+
+START=30
+
+USE_PROCD=1
+PROG=/usr/local/sbin/firstsync
+
+start_service () {
+  [ ! -x "$PROG" ] && exit
+
+  procd_open_instance
+  procd_set_param command "$PROG"
+  procd_close_instance
+}
+
