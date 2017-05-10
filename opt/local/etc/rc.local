@@ -8,8 +8,4 @@
 
 touch /var/run/utmp
 
-test -d /etc && chmod 0755 /etc
-
-echo 0 > /proc/sys/net/netfilter/nf_conntrack_helper
-
 exit 0

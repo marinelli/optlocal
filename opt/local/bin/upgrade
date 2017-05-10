@@ -1,0 +1,197 @@
+#!/bin/sh
+
+. /opt/local/lib/common.sh >/dev/null
+
+
+BACKUP_PATH='/tmp/upgrade-backup.tar.gz'
+
+OPENWRT_IMAGE_CONF='/etc/openwrt_image'
+OPENWRT_RELEASE_CONF='/etc/openwrt_release'
+
+
+if [ -f "$OPENWRT_IMAGE_CONF" ] ; then
+  . "$OPENWRT_IMAGE_CONF"
+fi
+
+if [ -z "${OPENWRT_IMAGE}" ] ; then
+  printf '!! %s : %s\n' "${0##*/}" "unknown openwrt image file name" 1>&2
+  exit $EXIT_FAILURE
+fi
+
+
+get_firmware () {
+  local FUN_NAME='get_firmware'
+  local FUN_ARG_NUM='0'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
+
+  if [ -f "$OPENWRT_RELEASE_CONF" ] ; then
+    . "$OPENWRT_RELEASE_CONF"
+    local OPENWRT_TARGET="${DISTRIB_TARGET}"
+  fi
+
+  if [ -z "${OPENWRT_TARGET}" ] ; then
+    info_message "${0##*/} : unknown board architecture"
+    exit $EXIT_FAILURE
+  fi
+
+  local URL="http://downloads.openwrt.org/snapshots/trunk/${OPENWRT_TARGET}"
+
+  if [ ! -f "${TMP_PATH}/${OPENWRT_IMAGE}" ] ; then
+    printf '>> %s\n' "Downloading ${OPENWRT_IMAGE}"
+    wget -q -P "$TMP_PATH" "${URL}/${OPENWRT_IMAGE}" \
+      || exit $EXIT_FAILURE
+  fi
+
+  if [ ! -f "${TMP_PATH}/${OPENWRT_IMAGE}.md5sum" ] ; then
+    wget -q -O- "${URL}/md5sums" \
+        | grep "${OPENWRT_IMAGE}" \
+        > "${TMP_PATH}/${OPENWRT_IMAGE}.md5sum"
+  fi
+
+  if [ ! -f "${TMP_PATH}/${OPENWRT_IMAGE}.md5sum" ] ; then
+    exit $EXIT_FAILURE
+  fi
+
+  local MD5=`cat "${TMP_PATH}/${OPENWRT_IMAGE}.md5sum" | cut -f 1 -d ' '`
+
+  printf '%s  %s\n' "${MD5}" "${TMP_PATH}/${OPENWRT_IMAGE}" | md5sum -c -
+
+  return $?
+}
+
+
+prepare () {
+  local FUN_NAME='prepare'
+  local FUN_ARG_NUM='2'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
+
+  local IMAGE_FILE="${1##*/}"
+
+  check_not_empty_arguments "$IMAGE_FILE" \
+    || {
+      error_message "you need an image file as argument"
+      exit $EXIT_FAILURE
+    }
+
+  local CONFIG_NAME="$2"
+
+  check_not_empty_arguments "$CONFIG_NAME" \
+    || {
+      error_message "you need a configuration"
+      exit $EXIT_FAILURE
+    }
+
+  OLD_PATH=`pwd`
+
+  WORKING_PATH=`mktemp -d /tmp/upgrade-backup.XXXXXX`
+
+  mkdir "${WORKING_PATH}/tmp"
+  touch "${WORKING_PATH}/tmp/firstboot"
+
+  mkdir "${WORKING_PATH}/etc"
+  touch "${WORKING_PATH}/etc/latest"
+  cp -a "${OPTLOCAL}/etc/rc.local" "${WORKING_PATH}/etc/"
+
+  printf "OPENWRT_IMAGE='%s'\n" "$IMAGE_FILE" \
+      > "${WORKING_PATH}/${OPENWRT_IMAGE_CONF#/}"
+
+  printf "OPTLOCAL_CONFIG_NAME='%s'\n" "$CONFIG_NAME" \
+      > "${WORKING_PATH}/${OPTLOCAL_CONFIG_PATH}"
+
+  [ -f "$BACKUP_PATH" ] && rm -f "$BACKUP_PATH"
+
+  cd "$WORKING_PATH"
+
+  tar czf "$BACKUP_PATH" tmp etc "$OPTLOCAL" 2>/dev/null \
+    || exit $EXIT_FAILURE
+
+  if [ -d "$OLD_PATH" ] ; then
+    cd "$OLD_PATH"
+    [ -d "$WORKING_PATH" ] && rm -fr "$WORKING_PATH"
+  fi
+
+  return $SUCCESS
+}
+
+
+main () {
+  local FUN_NAME='main'
+  local FUN_ARG_NUM='0'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+
+  check_num_arguments_at_least "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
+
+  local COMMAND="$1"
+  local FIRMWARE_PATH="$2"
+  local CONFIG_NAME="$3"
+
+  local RESULT=''
+
+  case "$COMMAND" in
+    get_firmware)
+      get_firmware
+      RESULT="$?"
+    ;;
+    prepare)
+      if [ -z "$FIRMWARE_PATH" ] ; then
+        if [ ! -z "$OPENWRT_IMAGE" ] ; then
+          FIRMWARE_PATH="${TMP_PATH}/${OPENWRT_IMAGE}"
+        else
+          error_message 'you need a firmware image'
+          return $FAILURE
+        fi
+      fi
+      if [ ! -f "$FIRMWARE_PATH" ] ; then
+        error_message "${FIRMWARE_PATH} does not exist"
+        return $FAILURE
+      fi
+      if [ -z "$CONFIG_NAME" ] ; then
+        if [ -f "$OPTLOCAL_CONFIG_PATH" ] ; then
+          . "$OPTLOCAL_CONFIG_PATH"
+        fi
+        if [ ! -z "$OPTLOCAL_CONFIG_NAME" ] ; then
+          CONFIG_NAME="$OPTLOCAL_CONFIG_NAME"
+        else
+          error_message 'OPTLOCAL_CONFIG_NAME is not defined'
+          return $FAILURE
+        fi
+      fi
+      prepare "$FIRMWARE_PATH" "$CONFIG_NAME"
+      RESULT="$?"
+    ;;
+    go)
+      get_firmware || exit $EXIT_FAILURE
+
+      [ ! -f "${TMP_PATH}/${OPENWRT_IMAGE}" ] && exit $EXIT_FAILURE
+
+      prepare "${TMP_PATH}/${OPENWRT_IMAGE}" \
+        || exit $EXIT_FAILURE
+
+      [ ! -f "$BACKUP_PATH" ] && exit $EXIT_FAILURE
+
+      exec sysupgrade -f "$BACKUP_PATH" "${TMP_PATH}/${OPENWRT_IMAGE}"
+      RESULT="$?"
+    ;;
+    *)
+      printf '!! %s : %s\n' "${0##*/}" 'syntax' 1>&2
+      printf '        %s\n' 'get_firmware' 1>&2
+      printf '        %s\n' 'prepare <firmware-image> <config-name>' 1>&2
+      printf '        %s\n' 'go [firmware-image]' 1>&2
+      RESULT=$SUCCESS
+    ;;
+  esac
+
+  return $RESULT
+}
+
+main $@
+
+exit $?
+

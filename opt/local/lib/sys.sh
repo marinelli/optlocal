@@ -2,7 +2,7 @@
 
 ###
 [ -z "$SYS_SH" ] && {
-readonly SYS_SH='included'
+readonly SYS_SH='sys.sh'
 ###
 
 
@@ -12,33 +12,35 @@ readonly SYS_SH='included'
 wait_for_seconds () {
   local FUN_NAME='wait_for_seconds'
   local FUN_ARG_NUM='1'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || \
-    exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
 
   local SECONDS="$1"
 
-  check_not_empty_arguments "$FUN_NAME" "$SECONDS" || \
-    exit $EXIT_FAILURE
+  check_not_empty_arguments "$SECONDS" \
+    || exit $EXIT_FAILURE
 
   printf ">> Waiting for %s seconds...\n" "$SECONDS"
   sleep "$SECONDS"
 
-  return $?
+  return $SUCCESS
 }
 
 
 disable_and_stop_daemon () {
   local FUN_NAME='disable_and_stop_daemon'
   local FUN_ARG_NUM='1'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || \
-    exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
 
   local DAEMON="$1"
 
-  check_not_empty_arguments "$FUN_NAME" "$DAEMON" || \
-    exit $EXIT_FAILURE
+  check_not_empty_arguments "$DAEMON" \
+    || exit $EXIT_FAILURE
 
   which "$DAEMON" >/dev/null && {
     printf ">> Disabling %s\n" "$DAEMON"
@@ -52,6 +54,7 @@ disable_and_stop_daemon () {
 
 
 ###
-} # SYS_SH
+debug_message "$SYS_SH included"
+} || true
 ###
 

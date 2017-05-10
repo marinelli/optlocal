@@ -2,25 +2,49 @@
 
 ###
 [ -z "$OPTLOCAL_SH" ] && {
-readonly OPTLOCAL_SH='included'
+readonly OPTLOCAL_SH='optlocal.sh'
 ###
 
 
 . /opt/local/lib/common.sh
 
 
+path_is_absolute () {
+  local FUN_NAME='path_is_absolute'
+  local FUN_ARG_NUM=1
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
+
+  CUR_PATH="$1"
+
+  check_not_empty_arguments "$CUR_PATH" \
+    || exit $EXIT_FAILURE
+
+  printf "${CUR_PATH}\n" | grep -q '^/'
+
+  if [ "$?" -eq "$SUCCESS" ] ; then
+    return $SUCCESS
+  else
+    return $FAILURE
+  fi
+}
+
+
 optlocal_paths () {
   local FUN_NAME='optlocal_paths'
   local FUN_ARG_NUM='2'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || \
-    exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
 
   local ORIG_FILE="$1"
   local DEST_BASE="$2"
 
-  check_not_empty_arguments "$FUN_NAME" "$ORIG_FILE" || \
-    return $FAILURE
+  check_not_empty_arguments "$ORIG_FILE" "$DEST_BASE" \
+    || exit $EXIT_FAILURE
 
   local CHECK_RELATIVE_PATH=`printf $ORIG_FILE | sed -n "\:^/:p"`
   if [ -z "$CHECK_RELATIVE_PATH" ] ; then
@@ -44,24 +68,38 @@ optlocal_paths () {
 
 optlocal_exec () {
   local FUN_NAME='optlocal_exec'
-  local FUN_ARG_NUM='3'
+  local FUN_ARG_NUM='4'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || \
-    exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
+    || exit $EXIT_FAILURE
 
   local COMMAND_TYPE="$1"
   local ORIG_FILE="$2"
   local DEST_BASE="$3"
+  local CONFIG_NAME="$4"
   local DEST_FILE=''
   local DEST_PATH=''
 
-  check_not_empty_arguments "$COMMAND_TYPE" "$ORIG_FILE" ||
-    exit $EXIT_FAILURE
+  check_not_empty_arguments "$COMMAND_TYPE" "$ORIG_FILE" \
+      "$DEST_BASE" \
+    || exit $EXIT_FAILURE
 
   local RESULT=`optlocal_paths $ORIG_FILE $DEST_BASE`
   ORIG_FILE="${RESULT%%;*}"
   DEST_FILE="${RESULT##*;}"
   unset RESULT
+
+  if [ -n "$CONFIG_NAME" ] ; then
+    local ORIG_HOST_FILE="${OPTHOSTS}/${CONFIG_NAME}/${ORIG_FILE##${OPTLOCAL}/}"
+
+    if [ -f "$ORIG_HOST_FILE" ] ; then
+      ORIG_FILE="$ORIG_HOST_FILE"
+    fi
+  fi
+
+  printf ':: %s\n' "$ORIG_FILE ; $DEST_FILE"
+  return 0
 
   [ ! -f "$ORIG_FILE" ] && return $FAILURE
 
@@ -146,14 +184,17 @@ optlocal_exec () {
 optlocal () {
   local FUN_NAME='optlocal'
   local FUN_ARG_NUM='1'
+  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_at_least "$FUN_NAME" "$FUN_ARG_NUM" "$#" || {
-    printf '!! %s : %s\n' "$FUN_NAME" 'syntax: optlocal {command} [a b c...] [dest=path]' 1>&2
-    exit $EXIT_FAILURE
-  }
+  check_num_arguments_at_least "$FUN_ARG_NUM" "$#" \
+    || {
+      info_message 'syntax: optlocal {command} [a b c...] [dest=path] [conf=name]'
+      exit $EXIT_FAILURE
+    }
 
   local ORIG_FILES=''
   local DEST_BASE=''
+  local CONFIG_NAME=''
 
   local COMMAND="$1"
   shift 1
@@ -163,11 +204,17 @@ optlocal () {
     CUR_ARG="$1"
     shift 1
 
-    if [ "${CUR_ARG%%=*}" = 'dest' ] ; then
-      DEST_BASE="${CUR_ARG#dest=}"
-    else
-      ORIG_FILES="${ORIG_FILES:+${ORIG_FILES} }${CUR_ARG}"
-    fi
+    case "${CUR_ARG%%=*}" in
+      dest)
+        DEST_BASE="${CUR_ARG#dest=}"
+      ;;
+      conf)
+        CONFIG_NAME="${CUR_ARG#conf=}"
+      ;;
+      *)
+        ORIG_FILES="${ORIG_FILES:+${ORIG_FILES} }${CUR_ARG}"
+      ;;
+    esac
   done
   unset CUR_ARG
 
@@ -183,7 +230,7 @@ optlocal () {
 
   printf "${ORIG_FILES}\n" | grep -qE '^[[:blank:]]*$'
 
-  if [ "$?" -eq 0 ] ; then
+  if [ "$?" -eq "$SUCCESS" ] ; then
     local CUR_ARGS=''
     local CUR_LINE=''
     while read CUR_LINE ; do
@@ -196,13 +243,26 @@ optlocal () {
 
   printf "${ORIG_FILES}\n" | grep -qE '^[[:blank:]]*$'
 
-  if [ "$?" -eq 0 ] ; then
+  if [ "$?" -eq "$SUCCESS" ] ; then
     return $FAILURE
   fi
 
+  local CUR_PATH=''
   local ORIG_FILE=''
   for ORIG_FILE in $ORIG_FILES ; do
-    optlocal_exec "$COMMAND" "$ORIG_FILE" "$DEST_BASE"
+    if [ -n "$CONFIG_NAME" ] ; then
+      CUR_PATH="${OPTHOSTS}/${CONFIG_NAME}/${ORIG_FILE}"
+      if [ -d "$CUR_PATH" ] ; then
+        find "$CUR_PATH" \! -type d
+      fi
+    fi
+  done
+  unset ORIG_FILE
+
+
+  local ORIG_FILE=''
+  for ORIG_FILE in $ORIG_FILES ; do
+    optlocal_exec "$COMMAND" "$ORIG_FILE" "$DEST_BASE" "$CONFIG_NAME"
   done
   unset ORIG_FILE
 
@@ -211,6 +271,7 @@ optlocal () {
 
 
 ###
-} # OPTLOCAL_SH
+debug_message "$OPTLOCAL_SH included"
+} || true
 ###
 

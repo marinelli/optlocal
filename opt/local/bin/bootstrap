@@ -1,130 +1,23 @@
 #!/bin/sh
 
-. /opt/local/lib/optlocal.sh
-. /opt/local/lib/pkg.sh
-. /opt/local/lib/dns.sh
-. /opt/local/lib/sys.sh
+CMD_NAME="${0##*/}"
 
-wait_for_seconds 20
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
 
-optlocal link << EOF
-bin/proctl bin/reboot
-bin/list-upgradable-pkgs
-bin/diff-installed-config
-EOF
+COMMON_SH_PATH='/opt/local/lib/common.sh'
 
-optlocal copy dest=/ << EOF
-etc/passwd etc/shadow etc/group
-etc/hosts etc/profile etc/rc.local
-etc/sysupgrade.conf
-EOF
+if [ ! -f "$COMMON_SH_PATH" ] ; then
+  printf '!! %s : %s\n' "$CMD_NAME" "${COMMON_SH_PATH##*/} is missing"
+  exit $EXIT_FAILURE
+fi
 
-find /opt/local/etc/config/ -type f \! -name \*.off | \
-  optlocal copy dest=/
+if . "$COMMON_SH_PATH" ; then
+  load_all_libs
+else
+  printf '!! %s : %s\n' "$CMD_NAME" 'something gone wrong'
+  exit $EXIT_FAILURE
+fi
 
-disable_and_stop_daemon odhcpd
-
-disable_and_stop_daemon dnsmasq
-
-disable_and_stop_daemon dropbear
-
-optlocal replace dest=/ etc/dropbear/dropbear_dss_host_key
-optlocal replace dest=/ etc/dropbear/dropbear_rsa_host_key
-which dropbear >/dev/null && ! pidof sshd >/dev/null && {
-  proctl start dropbear
-}
-
-proctl reload system
-proctl reload network
-
-wait_for_seconds 10
-
-dns_temp_enable
-
-pidof ntpd >/dev/null && proctl stop sysntpd
-/usr/sbin/ntpd -nqN \
-  -p 0.europe.pool.ntp.org -p 1.europe.pool.ntp.org \
-  -p 2.europe.pool.ntp.org -p 3.europe.pool.ntp.org \
-    >/dev/null 2>&1
-proctl start sysntpd
-
-while true ; do
-  opkg update >/dev/null 2>&1 && break
-  sleep 5
-done
-
-
-## dropbear
-disable_and_stop_daemon dropbear
-pkg_installed dropbear && pkg_remove dropbear
-##
-
-
-## openssh
-pkg_install openssh-server openssh-moduli openssh-client
-
-disable_and_stop_daemon sshd
-
-find /opt/local/etc/ssh/ -type f \! -name \*.off | \
-  optlocal copy dest=/
-
-proctl enable sshd
-proctl start sshd
-##
-
-
-## dnsmasq
-pkg_installed dnsmasq && pkg_remove dnsmasq
-pkg_install dnsmasq-full
-
-disable_and_stop_daemon dnsmasq
-
-[ -d /etc/dnsmasq.conf.d ] && rm -fr /etc/dnsmasq.conf.d
-[ -f /etc/dnsmasq.conf ] && rm -f /etc/dnsmasq.conf
-
-find /opt/local/etc/dnsmasq.conf.d/ -type f \! -name \*.off | \
-  optlocal link dest=/
-
-optlocal copy etc/dnsmasq.conf dest=/
-optlocal copy etc/init.d/dnsmasq dest=/
-
-proctl enable dnsmasq
-proctl start dnsmasq
-##
-
-
-## unbound
-pkg_install unbound unbound-anchor
-
-disable_and_stop_daemon unbound
-
-find /opt/local/etc/unbound/ -type f \! -name \*.off | \
-  optlocal copy dest=/
-
-optlocal copy etc/init.d/unbound dest=/
-
-proctl enable unbound
-proctl start unbound
-##
-
-
-## miniupnpd
-pkg_install miniupnpd
-
-disable_and_stop_daemon miniupnpd
-
-optlocal copy etc/init.d/miniupnpd dest=/
-
-proctl enable miniupnpd
-proctl start miniupnpd
-##
-
-
-pkg_install \
-  6in4 ip ss bind-host bind-dig \
-  diffutils patch zile terminfo
-
-dns_temp_disable
-
-proctl reload network
+bootstrap $@
 

@@ -1,2 +1,11 @@
 #!/bin/sh
-opkg list-upgradable | grep -v kmod-
+
+OPKG=`which opkg`
+
+if [ -z "$OPKG" ] ; then
+  printf '!! %s : %s\n' "${0##*/}" 'opkg is missing' 1>&2
+  exit 1
+fi
+
+"$OPKG" list-upgradable | grep -v kmod-
+

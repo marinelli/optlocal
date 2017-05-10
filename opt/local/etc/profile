@@ -15,10 +15,4 @@ export PS1='\u@\h:\w\$ '
 [ -x /usr/bin/ldd ] || ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }
 
 export PATH=/usr/local/bin:/usr/local/sbin:$PATH
-export TERM=${TERM%-256color}
-
-OPTLOCAL_ENV='/opt/local/lib/common.sh'
-[ -f "$OPTLOCAL_ENV" ] && \
-  alias optlocalenv=". $OPTLOCAL_ENV"
-unset OPTLOCAL_ENV
 

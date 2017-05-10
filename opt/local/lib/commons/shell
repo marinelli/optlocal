@@ -1,0 +1,3 @@
+
+PATH="$OPTLOCAL/bin:$OPTLOCAL/sbin:$PATH"
+

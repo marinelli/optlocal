@@ -1,0 +1,3 @@
+#!/bin/sh
+clear
+[ "$PPID" -ne 1 ] && kill -4 "$PPID"
