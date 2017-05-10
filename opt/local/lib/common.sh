@@ -2,136 +2,103 @@
 
 ###
 [ -z "$COMMON_SH" ] && {
-readonly COMMON_SH='common.sh'
+readonly COMMON_SH='included'
 ###
-
-
-. /opt/local/lib/commons/codes
-
-
-error_message () {
-  local STACK_TRACE="${STACK_TRACE% *}* $FUN_NAME"
-  local MESSAGE="$1"
-
-  printf '!! %s\n' 'Error' 1>&2
-  for CUR_FUN in $STACK_TRACE ; do
-    printf '-> %s\n' "$CUR_FUN" 1>&2
-  done
-  printf '   : %s\n' "$MESSAGE" 1>&2
-
-  return $SUCCESS
-}
-
-
-debug_message () {
-  local MESSAGE="$1"
-
-  if [ ! -z "$DEBUG" ] ; then
-    printf '@@ %s\n' "$MESSAGE" 1>&2
-  fi
-
-  return $SUCCESS
-}
-
-
-info_message () {
-  local MESSAGE="$1"
-
-  printf ">> %s : %s\n" "$FUN_NAME" "$MESSAGE"
-
-  return $SUCCESS
-}
 
 
 check_num_arguments_equal_to () {
   local FUN_NAME='check_num_arguments_equal_to'
-  local FUN_ARG_NUM='2'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+  local FUN_ARG_NUM='3'
 
   if [ "$#" -ne "$FUN_ARG_NUM" ] ; then
-    error_message "number of arguments must be equal to $FUN_ARG_NUM"
-    exit $EXIT_FAILURE
+    printf '!! %s : %s\n' "$FUN_NAME" "number of arguments must $FUN_ARG_NUM" 1>&2
+    exit 1
   fi
 
-  local REQ_ARG_NUM="$1"
-  local CUR_ARG_NUM="$2"
+  local CALLER_FUN="$1"
+  local REQ_ARG_NUM="$2"
+  local CUR_ARG_NUM="$3"
 
-  if [[ -z "$REQ_ARG_NUM" || -z "$CUR_ARG_NUM" ]] ; then
-    error_message "an argument is an empty string"
-    exit $EXIT_FAILURE
+  if [[ -z "$CALLER_FUN" || -z "$REQ_ARG_NUM" || -z "$CUR_ARG_NUM" ]] ; then
+    printf '!! %s : %s\n' "$FUN_NAME" "an argument is an empty string" 1>&2
+    exit 1
   fi
 
   if [ "$CUR_ARG_NUM" -ne "$REQ_ARG_NUM" ] ; then
-    error_message "number of arguments must be equal to $REQ_ARG_NUM"
-    return $FAILURE
+    printf '!! %s : %s\n' "$CALLER_FUN" "number of arguments must $REQ_ARG_NUM" 1>&2
+    return 1
   fi
 
-  return $SUCCESS
+  return 0
 }
 
 
 check_num_arguments_at_least () {
   local FUN_NAME='check_num_arguments_at_least'
-  local FUN_ARG_NUM='2'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+  local FUN_ARG_NUM='3'
 
   if [ "$#" -ne "$FUN_ARG_NUM" ] ; then
-    error_message "number of arguments must be equal to $FUN_ARG_NUM"
-    exit $EXIT_FAILURE
+    printf '!! %s : %s\n' "$FUN_NAME" "number of arguments must $FUN_ARG_NUM" 1>&2
+    exit 1
   fi
 
-  local REQ_ARG_NUM="$1"
-  local CUR_ARG_NUM="$2"
+  local CALLER_FUN="$1"
+  local REQ_ARG_NUM="$2"
+  local CUR_ARG_NUM="$3"
 
-  if [[ -z "$REQ_ARG_NUM" || -z "$CUR_ARG_NUM" ]] ; then
-    error_message "an argument is an empty string"
-    exit $EXIT_FAILURE
+  if [[ -z "$CALLER_FUN" || -z "$REQ_ARG_NUM" || -z "$CUR_ARG_NUM" ]] ; then
+    printf '!! %s : %s\n' "$FUN_NAME" "an argument is an empty string" 1>&2
+    exit 1
   fi
 
   if [ "$CUR_ARG_NUM" -lt "$REQ_ARG_NUM" ] ; then
-    error_message "number of arguments must be greater than or equal to $REQ_ARG_NUM"
-    return $FAILURE
+    printf '!! %s : %s\n' "$CALLER_FUN" \
+      "number of arguments must be greater than or equal to $REQ_ARG_NUM" 1>&2
+    return 1
   fi
 
-  return $SUCCESS
+  return 0
 }
 
 
 check_not_empty_arguments () {
   local FUN_NAME='check_not_empty_arguments'
-  local FUN_ARG_NUM='1'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+  local FUN_ARG_NUM='2'
 
-  check_num_arguments_at_least "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+  check_num_arguments_at_least "$FUN_NAME" "$FUN_ARG_NUM" "$#" || exit 1
+
+  local CALLER_FUN="$1"
+  shift 1
+
+  if [ -z "$CALLER_FUN" ] ; then
+    printf '!! %s : %s\n' "$CALLER_FUN" "an argument is an empty string" 1>&2
+    return 1
+  fi
 
   local CUR_ARG=''
   while [ "$#" -gt 0 ] ; do
     CUR_ARG="$1"
     shift 1
     if [ -z "$CUR_ARG" ] ; then
-      error_message "an argument is an empty string"
-      return $FAILURE
+      printf '!! %s : %s\n' "$CALLER_FUN" "an argument is an empty string" 1>&2
+      return 1
     fi
   done
   unset CUR_ARG
 
-  return $SUCCESS
+  return 0
 }
 
 
 variable_is_read_only () {
   local FUN_NAME='variable_is_read_only'
   local FUN_ARG_NUM='1'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || exit 1
 
   local VARIABLE_NAME="$1"
 
-  check_not_empty_arguments "$VARIABLE_NAME" \
-    || exit $EXIT_FAILURE
+  check_not_empty_arguments "$FUN_NAME" "$VARIABLE_NAME" || exit 1
 
   readonly | grep -q " ${VARIABLE_NAME}="
 
@@ -142,15 +109,12 @@ variable_is_read_only () {
 variable_is_initialized () {
   local FUN_NAME='variable_is_initialized'
   local FUN_ARG_NUM='1'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || exit 1
 
   local VARIABLE_NAME="$1"
 
-  check_not_empty_arguments "$VARIABLE_NAME" \
-    || exit $EXIT_FAILURE
+  check_not_empty_arguments "$FUN_NAME" "$VARIABLE_NAME" || exit 1
 
   set | grep -q "^${VARIABLE_NAME}="
 
@@ -161,76 +125,68 @@ variable_is_initialized () {
 check_variable_value () {
   local FUN_NAME='check_variable_value'
   local FUN_ARG_NUM='2'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || exit 1
 
   local VARIABLE_NAME="$1"
   local VARIABLE_VALUE="$2"
 
-  check_not_empty_arguments "$VARIABLE_NAME" \
-    || exit $EXIT_FAILURE
+  check_not_empty_arguments "$FUN_NAME" "$VARIABLE_NAME" || exit 1
 
   if ! variable_is_initialized "$VARIABLE_NAME" ; then
-    return $FAILURE
+    return 1
   fi
 
   local CUR_VALUE="\$$VARIABLE_NAME"
   CUR_VALUE=`eval printf "$CUR_VALUE"`
 
   if [ "$CUR_VALUE" != "$VARIABLE_VALUE" ] ; then
-    return $FAILURE
+    return 1
   fi
 
-  return $SUCCESS
+  return 0
 }
 
 
 initialize_constant () {
   local FUN_NAME='initialize_constant'
   local FUN_ARG_NUM='2'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || exit 1
 
   local VARIABLE_NAME="$1"
   local VARIABLE_VALUE="$2"
 
-  check_not_empty_arguments "$VARIABLE_NAME" \
-    || exit $EXIT_FAILURE
+  check_not_empty_arguments "$FUN_NAME" "$VARIABLE_NAME" || exit 1
 
   if ! variable_is_initialized "$VARIABLE_NAME" ; then
     eval readonly "${VARIABLE_NAME}=${VARIABLE_VALUE}"
-    return $SUCCESS
+    return 0
   fi
 
   if ! variable_is_read_only "$VARIABLE_NAME" ; then
     eval readonly "${VARIABLE_NAME}=${VARIABLE_VALUE}"
-    return $SUCCESS
+    return 0
   fi
 
   if check_variable_value "$VARIABLE_NAME" "$VARIABLE_VALUE" ; then
-    return $SUCCESS
+    return 0
   fi
 
-  return $FAILURE
+  return 1
 }
 
 
 initialize_multiple_constants () {
   local FUN_NAME='initialize_multiple_constants'
   local FUN_ARG_NUM='0'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
 
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || exit 1
 
   local VARIABLE_NAME=''
   local VARIABLE_VALUE=''
   local DEFINITION=''
-  local RESULT=$SUCCESS
+  local RESULT='0'
 
   while read DEFINITION ; do
     printf '%s\n' "$DEFINITION" | grep -qE '^[[:blank:]]*$' && continue
@@ -238,94 +194,33 @@ initialize_multiple_constants () {
     VARIABLE_NAME="${DEFINITION%%=*}"
     VARIABLE_VALUE="${DEFINITION#*=}"
 
-    initialize_constant "${VARIABLE_NAME}" "${VARIABLE_VALUE}" \
-      || printf "### ${VARIABLE_NAME} ${VARIABLE_VALUE}\n"
-    if [[ "$RESULT" -eq "$SUCCESS" && "$?" -ne "$SUCCESS" ]] ; then
-      RESULT="$FAILURE"
-      break
+    initialize_constant "${VARIABLE_NAME}" "${VARIABLE_VALUE}"
+    if [[ "$RESULT" -eq 0 && "$?" -ne 0 ]] ; then
+      RESULT='1'
     fi
   done
-  unset DEFINITION
 
   return $RESULT
 }
 
 
-load_lib () {
-  local FUN_NAME='load_lib'
-  local FUN_ARG_NUM='1'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
+initialize_multiple_constants << EOF
 
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
+FAILURE=1
+SUCCESS=0
 
-  local LIBRARY_PATH="$1"
+EXIT_FAILURE=1
+EXIT_SUCCESS=0
 
-  check_not_empty_arguments "$LIBRARY_PATH" \
-    || exit $EXIT_FAILURE
+OPTLOCAL='/opt/local'
+USRLOCAL='/usr/local'
 
-  if [ ! -f "$LIBRARY_PATH" ] ; then
-    error_message "$LIBRARY_PATH is not a file"
-    return $FAILURE
-  fi
+EOF
 
-  local LIBRARY_NAME="${1##*/}"
-
-  debug_message "loading $LIBRARY_NAME"
-
-  if ! . "$LIBRARY_PATH" ; then
-    error_message "$LIBRARY_PATH has not been loaded correctly"
-    return $FAILURE
-  fi
-
-  return $SUCCESS
-}
-
-
-load_all_libs () {
-  local FUN_NAME='load_all_libs'
-  local FUN_ARG_NUM='0'
-  local STACK_TRACE="$STACK_TRACE $FUN_NAME"
-
-  check_num_arguments_equal_to "$FUN_ARG_NUM" "$#" \
-    || exit $EXIT_FAILURE
-
-  local LIBS_TO_LOAD=`find "${OPTLOCAL}/lib/" -mindepth 1 -maxdepth 1 -type f \( -name \*.sh -a \! -name \*.off \)`
-
-  if [ -z "$LIBS_TO_LOAD" ] ; then
-    return $SUCCESS
-  fi
-
-  local BOOTSTRAP_LIBRARY=''
-  for BOOTSTRAP_LIBRARY in $LIBS_TO_LOAD ; do
-    load_lib "$BOOTSTRAP_LIBRARY" \
-      || return $FAILURE
-  done
-  unset BOOTSTRAP_LIBRARY
-
-  return $SUCCESS
-}
-
-
-common_sh_init () {
-  initialize_multiple_constants \
-      < /opt/local/lib/commons/codes \
-    || return $FAILURE
-
-  initialize_multiple_constants \
-      < /opt/local/lib/commons/paths \
-    || return $FAILURE
-
-  . /opt/local/lib/commons/shell \
-    || return $FAILURE
-
-  return $SUCCESS
-}
+PATH="$OPTLOCAL/bin:$OPTLOCAL/sbin:$PATH"
 
 
 ###
-common_sh_init ; unset common_sh_init
-debug_message "$COMMON_SH included"
-} || true
+} # COMMON_SH
 ###
 

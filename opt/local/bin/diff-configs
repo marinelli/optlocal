@@ -6,19 +6,8 @@ if [ -z "$DIFF" ] ; then
   exit 1
 fi
 
-UCI=`which uci`
-if [ -z "$UCI" ] ; then
-  exit 1
-fi
-
 CONFIG_1="${1##*/}"
 CONFIG_2="${2##*/}"
-
-if [[ -z "$CONFIG_1" || -z "$CONFIG_2" ]] ; then
-  printf '!! %s : %s\n' "${0##*/}" 'you need two configuration names as arguments' \
-    1>&2
-  exit 1
-fi
 
 WORKING_PATH=`mktemp -d /tmp/diff-config.XXXXXX`
 
@@ -39,18 +28,18 @@ case "${CONFIG_2##*-}" in
 esac
 
 if [ -n "$FILTER_1" ] ; then
-  "$UCI" show "$CONFIG_1" | sed "s/${FILTER_1}//" > \
+  uci show "$CONFIG_1" | sed "s/${FILTER_1}//" > \
     "${WORKING_PATH}/config_1"
 else
-  "$UCI" show "$CONFIG_1" > \
+  uci show "$CONFIG_1" > \
     "${WORKING_PATH}/config_1"
 fi
 
 if [ -n "$FILTER_2" ] ; then
-  "$UCI" show "$CONFIG_2" | sed "s/${FILTER_2}//" > \
+  uci show "$CONFIG_2" | sed "s/${FILTER_2}//" > \
     "${WORKING_PATH}/config_2"
 else
-  "$UCI" show "$CONFIG_2" > \
+  uci show "$CONFIG_2" > \
     "${WORKING_PATH}/config_2"
 fi
 

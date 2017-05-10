@@ -1,0 +1,29 @@
+#!/bin/sh
+
+BUSYBOX=$(which busybox)
+
+if [ -z "${BUSYBOX}" ] ; then
+  printf '!!! %s\n' "you need busybox" 1>&2
+  exit 1
+fi
+
+if [ ! -c "/dev/urandom" ] ; then
+  printf '!!! %s\n' "/dev/urandom is missing" 1>&2
+  exit 1
+fi
+
+RANDOM_NUMBER=$( \
+  "${BUSYBOX}" dd if=/dev/urandom bs=1024 count=1 2>/dev/null | \
+    "${BUSYBOX}" md5sum | \
+    "${BUSYBOX}" sed -rn -e 's/[^0-9]//g' -e 's/^0*//gp' | \
+    "${BUSYBOX}" cut -c -5 \
+  )
+
+if [ -z "${1}" ] ; then
+  MODULO='10'
+else
+  MODULO="$1"
+fi
+
+printf '%s\n' $((${RANDOM_NUMBER} % ${MODULO}))
+

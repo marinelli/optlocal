@@ -1,0 +1,121 @@
+#!/bin/sh
+
+CONFIG='openwrt-https'
+
+if [ ! -z "$1" ] ; then
+  CONFIG="$1"
+
+  if [ ! -z "$2" ] ; then
+    CONFIG="$CONFIG-$2"
+  fi
+fi
+
+case "$CONFIG" in
+  garr-http|garr)
+    URL_PROTOCOL='http'
+    URL_HOST='mirror1.mirror.garr.it'
+    URL_PATH='mirrors/openwrt/snapshots/trunk'
+  ;;
+  openwrt-http)
+    URL_PROTOCOL='http'
+    URL_HOST='downloads.openwrt.org'
+    URL_PATH='snapshots/trunk'
+  ;;
+  openwrt-https|openwrt)
+    URL_PROTOCOL='https'
+    URL_HOST='downloads.openwrt.org'
+    URL_PATH='snapshots/trunk'
+  ;;
+  *)
+    printf '!!! %s\n' "config not available" 1>&2
+    exit 1
+  ;;
+esac
+
+
+MD5SUM=$(which md5sum)
+
+if [ -z "${MD5SUM}" ] ; then
+  printf '!!! %s\n' "md5sum is missing" 1>&2
+  exit 1
+fi
+
+
+CLIENT=$(which curl || which wget-ssl || which wget)
+
+if [ -z "${CLIENT}" ] ; then
+  printf '!!! %s\n' "client is missing" 1>&2
+  exit 1
+fi
+
+case "${CLIENT##*/}" in
+  curl)
+    "$CLIENT" --version 2>/dev/null | grep -qi '^protocols.*[[:blank:]]https[[:blank:]]' || \
+      URL_PROTOCOL='http'
+  ;;
+  wget|wget-ssl)
+    "$CLIENT" --version 2>/dev/null | grep -qi '^.*[[:blank:]]+https[[:blank:]]' || \
+      URL_PROTOCOL='http'
+  ;;
+esac
+
+
+_INCLUDE_FILE='/etc/openwrt_image_file'
+
+if [ -f "${_INCLUDE_FILE}" ] ; then
+  . "${_INCLUDE_FILE}"
+else
+  printf '!!! %s\n' "${_INCLUDE_FILE} is missing" 1>&2
+  exit 1
+fi
+
+if [ -z "${OPENWRT_IMAGE}" ] ; then
+  printf '!!! %s\n' "Unknown image file name" 1>&2
+  printf '!!! %s\n' "OPENWRT_IMAGE is not defined in ${_INCLUDE_FILE}" 1>&2
+  exit 1
+fi
+
+unset _INCLUDE_FILE
+
+
+_INCLUDE_FILE='/etc/openwrt_release'
+
+if [ -f "${_INCLUDE_FILE}" ] ; then
+  . "${_INCLUDE_FILE}"
+else
+  printf '!!! %s\n' "${_INCLUDE_FILE} is missing" 1>&2
+  exit 1
+fi
+
+if [ -z "${DISTRIB_TARGET}" ] ; then
+  printf '!!! %s\n' "Unknown board architecture" 1>&2
+  printf '!!! %s\n' "DISTRIB_TARGET is not defined in ${_INCLUDE_FILE}" 1>&2
+  exit 1
+fi
+
+unset _INCLUDE_FILE
+
+
+URL="${URL_PROTOCOL}://${URL_HOST}/${URL_PATH}/${DISTRIB_TARGET}"
+
+
+cd "/tmp/" || exit 1
+
+test -f "${OPENWRT_IMAGE}" && rm "${OPENWRT_IMAGE}"
+test -f "${OPENWRT_IMAGE}.md5sum" && rm "${OPENWRT_IMAGE}.md5sum"
+
+printf '>>> %s\n' "getting ${OPENWRT_IMAGE} from ${URL_HOST} (${URL_PROTOCOL})"
+
+case "${CLIENT##*/}" in
+  curl)
+    "$CLIENT" -s "${URL}/${OPENWRT_IMAGE}" -o "${OPENWRT_IMAGE}"
+    "$CLIENT" -s "${URL}/md5sums" | grep "${OPENWRT_IMAGE}" > "${OPENWRT_IMAGE}.md5sum"
+  ;;
+  wget|wget-ssl)
+    "$CLIENT" -q "${URL}/${OPENWRT_IMAGE}"
+    "$CLIENT" -q -O- "${URL}/md5sums" | grep "${OPENWRT_IMAGE}" > "${OPENWRT_IMAGE}.md5sum"
+  ;;
+esac
+
+"$MD5SUM" -c "${OPENWRT_IMAGE}.md5sum"
+

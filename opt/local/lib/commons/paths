@@ -1,9 +1,0 @@
-
-USRLOCAL='/usr/local'
-OPTLOCAL='/opt/local'
-OPTHOSTS='/opt/hosts'
-
-OPTLOCAL_CONFIG_PATH='/etc/optlocal_config'
-
-TMP_PATH='/tmp'
-

@@ -1,0 +1,39 @@
+#!/bin/sh
+
+
+. /opt/local/lib/common.sh
+
+
+IMAGE_FILE="${1##*/}"
+
+if [ -z "$IMAGE_FILE" ] ; then
+  printf '!! %s : %s\n' "${0##*/}" "you need the image file as argument"
+  exit $EXIT_FAILURE
+fi
+
+BACKUP_PATH='/tmp/backup.tar.gz'
+
+OLD_PATH=`pwd`
+TMP_PATH=`mktemp -d /tmp/tmp.XXXXXX`
+
+mkdir "${TMP_PATH}/tmp"
+touch "${TMP_PATH}/tmp/firstboot"
+
+mkdir "${TMP_PATH}/etc"
+touch "${TMP_PATH}/etc/latest"
+cp -a "${OPTLOCAL}/etc/rc.local" "${TMP_PATH}/etc/"
+
+printf "OPENWRT_IMAGE='%s'\n" "$IMAGE_FILE" > \
+  "${TMP_PATH}/etc/openwrt_image_file"
+
+test -f "$BACKUP_PATH" && rm -f "$BACKUP_PATH"
+
+cd "$TMP_PATH"
+
+tar czf "$BACKUP_PATH" tmp etc "$OPTLOCAL" 2>/dev/null
+
+if [ -d "$OLD_PATH" ] ; then
+  cd "$OLD_PATH"
+  test -d "$TMP_PATH" && rm -fr "$TMP_PATH"
+fi
+
