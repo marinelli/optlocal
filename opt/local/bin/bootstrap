@@ -1,11 +1,8 @@
 #!/bin/sh
 
-. /opt/local/lib/optlocal.sh
-. /opt/local/lib/pkg.sh
-. /opt/local/lib/dns.sh
-. /opt/local/lib/sys.sh
-. /opt/local/lib/shell.sh
-
+for lib in optlocal pkg dns sys shell ; do
+  . "/opt/local/lib/${lib}.sh"
+done
 
 wait_for_seconds 20
 
@@ -20,52 +17,38 @@ optlocal copy dest=/ << EOF
 etc/passwd etc/shadow etc/group
 etc/hosts etc/profile etc/rc.local
 etc/sysupgrade.conf etc/sysctl.conf
+etc/init.d/boot
 EOF
 
 find /opt/local/etc/profile.d/ -type f \! -name \*.off | \
   optlocal link dest=/
 
-optlocal copy dest=/ << EOF
-etc/init.d/boot
-EOF
-
 find /opt/local/etc/config/ -type f \! -name \*.off | \
   optlocal copy dest=/
 
 disable_and_stop_daemon odhcpd
-
 disable_and_stop_daemon dnsmasq
-
 disable_and_stop_daemon dropbear
-
-optlocal replace dest=/ etc/dropbear/dropbear_dss_host_key
-optlocal replace dest=/ etc/dropbear/dropbear_rsa_host_key
-which dropbear >/dev/null && ! pidof sshd >/dev/null && {
-  proctl start dropbear
-}
 
 proctl reload system
 proctl reload network
+proctl reload firewall
 
 wait_for_seconds 10
 
 dns_temp_enable
 
-pidof ntpd >/dev/null && proctl stop sysntpd
-/usr/sbin/ntpd -nqN \
-  -p 0.europe.pool.ntp.org -p 1.europe.pool.ntp.org \
-  -p 2.europe.pool.ntp.org -p 3.europe.pool.ntp.org \
-    >/dev/null 2>&1
-proctl start sysntpd
 
+## opkg
 optlocal link dest=/ << EOF
-etc/opkg.conf
+etc/opkg/distfeeds.conf
 EOF
 
 while true ; do
-  opkg update >/dev/null 2>&1 && break
+  opkg --verbosity=0 update && break
   sleep 5
 done
+##
 
 
 ## mksh
@@ -74,13 +57,9 @@ pkg_installed mksh && change_user_shell root /bin/mksh
 ##
 
 
-## dropbear
-disable_and_stop_daemon dropbear
-pkg_installed dropbear && pkg_remove dropbear
-##
-
-
 ## openssh
+pkg_installed dropbear && pkg_remove dropbear
+
 pkg_install openssh-server openssh-moduli openssh-client
 
 disable_and_stop_daemon sshd
@@ -95,6 +74,7 @@ proctl start sshd
 
 ## dnsmasq
 pkg_installed dnsmasq && pkg_remove dnsmasq
+
 pkg_install dnsmasq-full
 
 disable_and_stop_daemon dnsmasq
@@ -151,4 +131,5 @@ pkg_remove \
 dns_temp_disable
 
 proctl reload network
+proctl reload firewall
 

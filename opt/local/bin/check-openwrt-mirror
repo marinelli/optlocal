@@ -4,22 +4,22 @@
 
 
 export_required_commands 'cut wget md5sum'
+export_required_commands 'gzip grep sed'
 
 
 OPENWRT_SITE='http://downloads.openwrt.org/snapshots/trunk/'
 
-
-OPENWRT_ARCH='ar71xx/generic'
-
-if [ ! -z "$1" ] ; then
-    OPENWRT_ARCH="$1"
+if [ -z "$2" ] ; then
+    OPENWRT_ARCH=$( sed -rn 's-^DISTRIB_TARGET=\x27(.*)\x27$-\1-p' /etc/openwrt_release )
+else
+    OPENWRT_ARCH="$2"
 fi
 
-
-OPENWRT_MIRROR='garr'
-
-if [ ! -z "$2" ] ; then
-    OPENWRT_MIRROR="$2"
+if [ -z "$1" ] ; then
+    printf '!!! %s\n' "you need to pass the mirror name: garr or brrr"
+    exit 1
+else
+    OPENWRT_MIRROR="$1"
 fi
 
 case "$OPENWRT_MIRROR" in
@@ -29,8 +29,8 @@ case "$OPENWRT_MIRROR" in
     garr)
 	MIRROR_SITE='http://mirror1.mirror.garr.it/mirrors/openwrt/snapshots/trunk/'
 	;;
-    reversiva)
-	MIRROR_SITE='http://reversiva.net:10080/openwrt/snapshots/trunk/'
+    brrr)
+	MIRROR_SITE='https://brrr.fr/openwrt/snapshots/trunk/'
 	;;
     *)
 	MIRROR_SITE="$OPENWRT_MIRROR"

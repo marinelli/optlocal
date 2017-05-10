@@ -40,11 +40,49 @@ disable_and_stop_daemon () {
   check_not_empty_arguments "$FUN_NAME" "$DAEMON" || \
     exit $EXIT_FAILURE
 
-  which "$DAEMON" >/dev/null && {
+  proctl initpath "$DAEMON" >/dev/null && {
     printf ">> Disabling %s\n" "$DAEMON"
-    pidof "$DAEMON" >/dev/null && proctl stop "$DAEMON"
-    pidof "$DAEMON" >/dev/null && killall -9 "$DAEMON"
     proctl enabled "$DAEMON" && proctl disable "$DAEMON"
+
+    printf ">> Stopping %s\n" "$DAEMON"
+    local PROGNAME=$( proctl progname "$DAEMON" )
+
+    if [ "$PROGNAME" == "" ] ; then
+      proctl stop "$DAEMON"
+    else
+      pidof "$PROGNAME" >/dev/null && proctl stop "$DAEMON"
+    fi
+  }
+
+  return $SUCCESS
+}
+
+
+disable_stop_and_kill_daemon () {
+  local FUN_NAME='disable_stop_and_kill_daemon'
+  local FUN_ARG_NUM='1'
+
+  check_num_arguments_equal_to "$FUN_NAME" "$FUN_ARG_NUM" "$#" || \
+    exit $EXIT_FAILURE
+
+  local DAEMON="$1"
+
+  check_not_empty_arguments "$FUN_NAME" "$DAEMON" || \
+    exit $EXIT_FAILURE
+
+  proctl initpath "$DAEMON" >/dev/null && {
+    printf ">> Disabling %s\n" "$DAEMON"
+    proctl enabled "$DAEMON" && proctl disable "$DAEMON"
+
+    printf ">> Stopping %s\n" "$DAEMON"
+    local PROGNAME=$( proctl progname "$DAEMON" )
+
+    if [ "$PROGNAME" == "" ] ; then
+      proctl stop "$DAEMON"
+    else
+      pidof "$PROGNAME" >/dev/null && proctl stop "$DAEMON"
+      pidof "$PROGNAME" >/dev/null && killall -9 "$PROGNAME"
+    fi
   }
 
   return $SUCCESS

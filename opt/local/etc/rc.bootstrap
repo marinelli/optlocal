@@ -1,36 +1,55 @@
 #!/bin/sh
 
+###
 _CUR_SCRIPT='rc.bootstrap'
+###
 
 
 _FIRSTBOOT_FILE='/tmp/firstboot'
+_BOOTSTRAP_PATH='/tmp/bootstrap'
 
 if [ -f "$_FIRSTBOOT_FILE" ] ; then
-    _BUSYBOX=$( which busybox )
+    test -f "$_BOOTSTRAP_PATH" && rm "$_BOOTSTRAP_PATH"
+    test -d "$_BOOTSTRAP_PATH" || mkdir -p "$_BOOTSTRAP_PATH"
+
+    _CUR_CMD_PATH=$( which dropbear )
 
     if [ "$?" -eq 0 ] ; then
-        _LOGIN_CMD=$( which /opt/local/bin/login || printf /bin/sh )
+        cp "${_CUR_CMD_PATH}" "${_BOOTSTRAP_PATH}/dropbear"
 
-        "$_BUSYBOX" telnetd -p 10023 -l "$_LOGIN_CMD"
+        if [ -f "/opt/local/etc/dropbear/dropbear_rsa_host_key" ] ; then
+            cp /opt/local/etc/dropbear/dropbear_rsa_host_key "${_BOOTSTRAP_PATH}"
+        else
+            ln -s "${_BOOTSTRAP_PATH}/dropbear" "${_BOOTSTRAP_PATH}/dropbearkey"
+            "${_BOOTSTRAP_PATH}/dropbearkey" -t rsa -f "${_BOOTSTRAP_PATH}/dropbear_rsa_host_key" 2>&- >&-
+        fi
+
+        "${_BOOTSTRAP_PATH}/dropbear" \
+          -B -P "${_BOOTSTRAP_PATH}/dropbear.pid" -p 20022 -K 300 \
+          -r "${_BOOTSTRAP_PATH}/dropbear_rsa_host_key"
     else
-        printf "!!! %s : %s\n" "$_CUR_SCRIPT" "busybox does not exist" 1>&2
+        printf '!!! %s : %s\n' "${_CUR_CMD_PATH##*/}" " does not exist" 1>&2
     fi
 
-    unset _BUSYBOX
+    unset _CUR_CMD_PATH
 
-    _BOOTSTRAP=$( which /opt/local/bin/bootstrap )
+    _CUR_CMD_PATH=$( which /opt/local/bin/bootstrap )
 
     if [ "$?" -eq 0 ] ; then
-        "$_BOOTSTRAP" 2>&1 | tee /tmp/bootstrap.log
+        "$_CUR_CMD_PATH" 2>&1 | tee "${_BOOTSTRAP_PATH}/bootstrap.log"
+    else
+        printf '!!! %s : %s\n' "${_CUR_CMD_PATH##*/}" " does not exist" 1>&2
     fi
 
-    unset _BOOTSTRAP
+    unset _CUR_CMD_PATH
 
     rm -f "$_FIRSTBOOT_FILE"
 fi
 
-unset _FIRSTBOOT_FILE
+unset _FIRSTBOOT_FILE _BOOTSTRAP_PATH
 
 
+###
 unset _CUR_SCRIPT
+###
 

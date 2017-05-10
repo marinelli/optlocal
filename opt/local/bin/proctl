@@ -3,18 +3,47 @@
 EXIT_FAILURE=1
 EXIT_SUCCESS=0
 
-SERVICE="/etc/init.d/$2"
-COMMAND="$1"
+INITS_PATH='/etc/init.d'
 
-if [ "x" == "x$2" ] ; then
+COMMAND="$1"
+INITSCRIPT="$2"
+
+if [ "" == "$2" ] ; then
   printf '>>> Syntax: proctl <command> <initscript>\n'
   exit $EXIT_FAILURE
 fi
 
-if [ -x "${SERVICE}" ] ; then
-  exec "${SERVICE}" "${COMMAND}"
-else
-  printf '>>> `%s´ not found\n' "${SERVICE}"
+INITSCRIPT_PATH="${INITS_PATH}/${INITSCRIPT}"
+
+if [ ! -x "${INITSCRIPT_PATH}" ] ; then
+  printf '>>> proctl: %s has not been found\n' "$INITSCRIPT"
   exit $EXIT_FAILURE
 fi
+
+if [ "$COMMAND" == "initpath" ] ; then
+  printf '%s\n' "$INITSCRIPT_PATH"
+  exit $EXIT_SUCCESS
+fi
+
+if [ "$COMMAND" == "progname" ] ; then
+  PROGNAME=$( sed -rn 's-^PROG=(.+)$-\1-p' "$INITSCRIPT_PATH" )
+  PROGNAME="${PROGNAME##*/}"
+
+  if [ "$PROGNAME" != "" ] ; then
+    printf '%s\n' "$PROGNAME"
+    exit $EXIT_SUCCESS
+  else
+    exit $EXIT_FAILURE
+  fi
+fi
+
+if [ "$COMMAND" == "progpath" ] ; then
+  PROGNAME=$( sed -rn 's-^PROG=(.+)$-\1-p' "$INITSCRIPT_PATH" )
+
+  which "$PROGNAME" 2>/dev/null
+
+  exit $?
+fi
+
+exec "$INITSCRIPT_PATH" "$COMMAND"
 
